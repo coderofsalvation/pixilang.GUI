@@ -1,4 +1,4 @@
-GUI library made by tabman (+enhancements)
+minimal GUI library made by tabman (+enhancements)
 
 ## Global variables 
 
