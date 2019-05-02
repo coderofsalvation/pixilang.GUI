@@ -6,6 +6,7 @@ GUI_TOP - contains current active object
 
 ## Functions 
 
+| code | info |
 |-|-|
 | ```GUI_new( $parent, $xpos, $ypos, $width, $height, $color, $transp, $texture )``` | create new object, all parameters are optional |
 | ```GUI_remove( $obj )``` | remove object and all sub-objects |
@@ -20,6 +21,7 @@ GUI_TOP - contains current active object
 
 ## Handlers 
 
+| code | info |
 |-|-|
 | ```GUI_check( $obj )``` | checks if object satisfies conditions for interaction |
 | ```GUI_evt( $obj )``` | handles interaction with object |
@@ -29,6 +31,7 @@ GUI_TOP - contains current active object
 
 object properties, i.e obj
 
+| code | info |
 |-|-|
 | .x, .y | coordinates of upper left corner ( 0, 0 ) |
 | .cx, .cy | mouse cursor coordinates in relation to object |
@@ -47,12 +50,14 @@ object properties, i.e obj
 
 events that can be always activated
 
+| code | info |
 |-|-|
 | .onevent | activates on system event |
 | .permanent | always active |
 
 events that can be activated only in normal mode
 
+| code | info |
 |-|-|
 | .onpress | activates when mouse button is clicked inside |
 | .onrelease | activates when mouse button was pressed and then released inside |
@@ -65,6 +70,7 @@ events that can be activated only in normal mode
 events that can be activated only in edit mode
 LMB - resize, MMB - focus, RMB - drag
 
+| code | info |
 |-|-|
 | .onresize | activates when object is resized through interaction with mouse |
 | .onfocus | activates when GUI_focus function is applied to object |
@@ -72,6 +78,7 @@ LMB - resize, MMB - focus, RMB - drag
 
 string properties, i.e obj.str[ i ]
 
+| code | info |
 |-|-|
 | .text | string text ( "" ) |
 | .x, .y | coordinates in relation to object ( $obj.w / 2, $obj.h / 2 ) |
@@ -80,6 +87,7 @@ string properties, i.e obj.str[ i ]
 
 texture.properties, i.e obj.tex
 
+| code | info |
 |-|-|
 | .x, .y | coordinates in relation to object |
 | .mask | color mask ( WHITE ) |
