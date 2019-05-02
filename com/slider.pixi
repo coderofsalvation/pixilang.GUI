@@ -1,0 +1,44 @@
+
+/* usage:
+ *  $slider = GUI_create_slider(main,10,10,200,50, get_color(0,255,0) )
+ *  $slider.title.text = "foobar" 
+ */
+fn GUI_create_slider( $parent, $x, $y, $w, $h, $color, $bordercolor, $minvalue, $maxvalue, $value, $label ){
+	$slider = GUI_new( $parent, $x, $y, $w, $h, $color )
+    $slider.minw = 15
+    $slider.maxw = $w
+    //in edit mode: LMB - onresize, MMB - onfocus, RMB - ondrag
+    $slider.flags | 64 // allow editing
+    $slider.borderw = $w
+    $slider.borderh = $h
+    $slider.borderx = $x
+    $slider.bordery = $y
+    $slider.value = $value
+    $slider.w = ( $w / ($maxvalue-$minvalue) ) * $value
+    if $slider.w < $slider.minw { $slider.w = $slider.minw }
+    $slider.maxvalue = $maxvalue
+    $slider.minvalue = $minvalue
+    $slider.border = $bordercolor
+	GUI_add_text( $slider, "title" )
+    $slider.title.x = 0
+    $slider.title.flags = TOP | LEFT
+    $slider.label = $label
+    sprintf( $slider.title.text, "%s: %i",$slider.label, $slider.value)
+    $slider.onresize = {
+        $1.title.x = 25
+        $w = EVT[ EVT_X ] - $1.x 
+        if $w < $1.maxw {
+            if $w > $1.minw { $1.w = $w }
+            $1.value = ( ($1.maxvalue - $1.minvalue) / $1.maxw ) * $w
+            sprintf( $1.title.text, "%s: %i",$1.label, $1.value)
+            if $1.onchange {
+                $1.onchange($1)
+            }
+        }
+    }
+    $slider.setValue = {
+        $1.value = $2
+        $1.onresize($1)
+    }
+    ret($slider)
+}

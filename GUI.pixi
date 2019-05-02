@@ -1,0 +1,471 @@
+
+GUI_TOP = -1
+GUI_ID = 1
+//CONSTRUCTOR\DESTRUCTOR
+
+//create new object, all parameters are optional
+fn GUI_new( $parent, $xpos, $ypos, $width, $height, $color, $transp, $texture )
+{
+    GUI_ID = GUI_ID+1
+	$obj = new( 1, 1, INT8 )
+	if $0 >= 1 { GUI_adopt( $obj, $parent ) }
+	if $0 >= 2 { $obj.x = $xpos } else { $obj.x = 0 }
+	if $0 >= 3 { $obj.y = $ypos } else { $obj.y = 0 }
+	if $0 >= 4 { $obj.w = $width } else { $obj.w = 100 }
+	if $0 >= 5 { $obj.h = $height } else { $obj.h = 100 }
+	if $0 >= 6 { $obj.color = $color } else { $obj.color = get_color( 128, 128, 128 ) }
+	if $0 >= 7 { $obj.transp = $transp } else { $obj.transp = 255 }
+	if $0 >= 8 { GUI_set_texture( $obj, $texture ) }
+	$obj.flags = 48
+    $obj.id = GUI_ID
+    $obj.resizew = 1
+    $obj.resizeh = 1
+	$obj.check = GUI_check
+	$obj.evt = GUI_evt
+	$obj.draw = GUI_draw
+	ret( $obj )
+}
+
+//remove object and all sub-objects
+fn GUI_remove( $obj )
+{
+	if $0 >= 1
+	{
+		$id = GUI_getid( $obj )
+		if $id >= 0
+		{
+			copy( $obj.parent.children, $obj.parent.children, $id, $id + 1 )
+			$obj.parent.children.size - 1
+			if $obj.parent.children.size < 1 { remove( $obj.parent.children ) }
+			else{ resize( $obj.parent.children, $obj.parent.children.size ) }
+		}
+		if $obj.children
+		{
+			$i = 0 while $i < $obj.children.size
+			{
+				GUI_remove( $obj.children[ 0 ] )
+				$i + 1
+			}
+		}
+		if $obj == GUI_TOP
+		{
+			GUI_propagate( $obj.parent, {
+				if GUI_getid( $1 ) < 0 { $1.check( $1 ) }
+			}, 1 )
+		}
+		remove( $obj )
+	}
+}
+
+//HANDLERS
+
+//checks if object satisfies conditions for interaction
+fn GUI_check( $obj )
+{
+	if ( $obj.flags & 48 ) == 48
+	{
+		if EVT[ EVT_TYPE ] == EVT_MOUSEMOVE || EVT[ EVT_TYPE ] == EVT_MOUSEBUTTONDOWN
+		|| EVT[ EVT_TYPE ] == EVT_MOUSEBUTTONUP
+		{
+			if EVT[ EVT_X ] >= $obj.x && EVT[ EVT_X ] < $obj.x + $obj.w &&
+			EVT[ EVT_Y ] >= $obj.y && EVT[ EVT_Y ] < $obj.y + $obj.h { GUI_TOP = $obj }
+			else { if GUI_TOP == $obj { GUI_TOP = -1 } }
+		}
+		if $obj.children
+		{
+			$i = 0 while $i < $obj.children.size
+			{
+				$obj.children[ $i ].check( $obj.children[ $i ] )
+				$i + 1
+			}
+		}
+	}
+}
+
+//handles interaction with object
+fn GUI_evt( $obj )
+{
+	if ( $obj.flags & 48 ) == 48
+	{
+		if $obj.onevent { $obj.onevent( $obj ) }
+		
+		//actions related to edit mode
+		if $obj.flags & 64
+		{
+			//if LMB is down
+			if $obj.flags & 1
+			{
+				if EVT[ EVT_X ] - $obj.x > 0 && EVT[ EVT_Y ] - $obj.y > 0
+				{
+					if $obj.tex	{ GUI_update_texture( $obj ) }
+					if $obj.onresize { 
+                        $obj.onresize( $obj ) 
+                    }else{
+                        $obj.w = EVT[ EVT_X ] - $obj.x
+                        $obj.h = EVT[ EVT_Y ] - $obj.y
+                    }
+				}
+			}
+			//if MMB is down
+			if $obj.flags & 2
+			{
+				GUI_focus( $obj )
+			}
+			//if RMB is down
+			if $obj.flags & 4
+			{
+				$dx = EVT[ EVT_X ] - $obj.x - $obj.cx
+				$dy = EVT[ EVT_Y ] - $obj.y - $obj.cy
+				GUI_propagate( $obj, {
+					$1.x + $2
+					$1.y + $3
+				}, 0, $dx, $dy )
+				if $obj.ondrag { $obj.ondrag( $obj ) }
+			}
+			if $obj != GUI-TOP
+			{
+				if $obj.flags & 8 { $obj.flags & 247 }
+			}
+		}
+		else
+		{
+			if $obj == GUI_TOP || $obj.onrelease
+			{
+				if ( $obj.flags & 8 ) == 0
+				{
+					if $obj.onenter { $obj.onenter( $obj ) }
+				}
+				if EVT[ EVT_TYPE ] == EVT_MOUSEBUTTONDOWN
+				{
+					if $obj.onpress { $obj.onpress( $obj ) }
+				}
+				if EVT[ EVT_TYPE ] == EVT_MOUSEBUTTONUP
+				{
+					if $obj.flags & EVT[ EVT_KEY ]
+					{
+						if $obj.onrelease { $obj.onrelease( $obj ) }
+					}
+				}
+			}
+			else
+			{
+				if $obj.flags & 8
+				{
+					$obj.flags & 240
+					if $obj.onleave { $obj.onleave( $obj ) }
+				}
+			}
+			if EVT[ EVT_TYPE ] == EVT_SCREENRESIZE
+			{
+				if $obj.onscrresize { $obj.onscrresize( $obj ) }
+			}
+		}
+		
+		//actions related to active object
+		if $obj == GUI_TOP
+		{
+			if ( $obj.flags & 8 ) == 0 { $obj.flags | 8	}
+			if EVT[ EVT_TYPE ] == EVT_MOUSEBUTTONDOWN {	$obj.flags | EVT[ EVT_KEY ]	}
+
+		}
+		
+		//actions that are always performed
+		if EVT[ EVT_TYPE ] == EVT_MOUSEMOVE
+		{
+			if EVT[ EVT_X ] >= $obj.x && EVT[ EVT_X ] < $obj.x + $obj.w &&
+			EVT[ EVT_Y ] >= $obj.y && EVT[ EVT_Y ] < $obj.y + $obj.h
+			{
+				$obj.cx = EVT[ EVT_X ] - $obj.x
+				$obj.cy = EVT[ EVT_Y ] - $obj.y
+			}
+		}
+		if EVT[ EVT_TYPE ] == EVT_MOUSEBUTTONUP
+		{
+			if $obj.flags & EVT[ EVT_KEY ] { $obj.flags & ( 255 - EVT[ EVT_KEY ] ) }
+		}
+		if $obj.children
+		{
+			$i = 0 while $i < $obj.children.size
+			{
+				$obj.children[ $i ].evt( $obj.children[ $i ] )
+				$i + 1
+			}
+		}
+	}
+}
+
+//handles drawing and part of interactions
+fn GUI_draw( $obj )
+{
+	if $obj.flags & 32
+	{
+		$t = get_transp()
+		if $obj.transp
+		{
+			transp( $obj.transp )
+			if $obj.tex <= 0 { fbox( $obj.x, $obj.y, $obj.w, $obj.h, $obj.color ) }
+			else
+			{
+				if $obj.tex.flags & 2 && $obj.tex.effect
+				{
+					if get_screen() == GL_SCREEN { remove_gl_data( $obj.tex ) }
+					$obj.tex.effect( $obj )
+				}
+				pixi( $obj.tex, $obj.x + $obj.tex.x, $obj.y + $obj.tex.y, $obj.tex.mask, $obj.tex.xscale,
+				$obj.tex.yscale, $obj.tex.xoffs, $obj.tex.yoffs, $obj.tex.fxcount, $obj.tex.fycount )
+			}
+		}
+		if $obj.flags & 16
+		{
+			if $obj.permanent { $obj.permanent( $obj ) }
+			if $obj == GUI_TOP && ( $obj.flags & 64 ) == 0
+			{
+				if $obj.onhover { $obj.onhover( $obj ) }
+				if $obj.flags & 7
+				{
+					if $obj.onhold { $obj.onhold( $obj ) }
+				}
+			}
+		}
+		if $obj.str && $obj.transp
+		{
+			$i = 0 while $i < $obj.str.size
+			{
+				if ( $obj.str[ $i ].flags & 16 ) == 0
+				{
+					print( $obj.str[ $i ].text, $obj.x + $obj.str[ $i ].x,$obj.y + $obj.str[ $i ].y,
+					$obj.str[ $i ].color, $obj.str[ $i ].flags  )
+				}
+				$i + 1
+			}
+		}
+		if $obj.border
+		{
+			box( $obj.borderx, $obj.bordery, $obj.borderw, $obj.borderh, $obj.border )
+		}
+		transp( $t )
+		if $obj.children
+		{
+			$i = 0 while $i < $obj.children.size
+			{
+				$obj.children[ $i ].draw( $obj.children[ $i ] )
+				$i + 1
+			}
+		}
+	}
+}
+
+//FUNCTIONS
+
+//get object position in parent's children array
+fn GUI_getid( $obj )
+{
+	if $0 >= 1
+	{
+		if $obj.parent.children > 0
+		{
+			$i = 0 while $i < $obj.parent.children.size
+			{
+				if $obj.parent.children[ $i ] == $obj { ret( $i ) }
+				$i + 1
+			}
+		}
+		ret( -1 )
+	}
+}
+
+//create parent-child relation between two objects
+fn GUI_adopt( $obj, $parent )
+{
+	if $0 >= 1
+	{
+		$id = GUI_getid( $obj )
+		if $id >= 0
+		{
+			copy( $obj.parent.children, $obj.parent.children, $id, $id + 1 )
+			$obj.parent.children.size - 1
+			if $obj.parent.children.size < 1 { remove( $obj.parent.children ) }
+			else{ resize( $obj.parent.children, $obj.parent.children.size ) }
+		}
+		$obj.parent = -1
+		if $0 >= 2 && $parent > 0
+		{
+			$obj.parent = $parent
+			$id = GUI_getid( $obj )
+			if $id < 0
+			{
+				if $parent.children
+				{
+					$parent.children.size + 1
+					resize( $parent.children, $parent.children.size, 1, INT )	
+				}
+				else
+				{
+					$parent.children = new( 1, 1, INT )
+					$parent.children.size = 1
+				}
+				$parent.children[ $parent.children.size - 1 ] = $obj
+			}
+		}
+	}
+}
+
+//moves object to the end of parent's children array
+//so that it would be drawn over it's brethen, i.e. focused
+fn GUI_focus( $obj )
+{
+	if $0 >= 1
+	{
+		$id = GUI_getid( $obj )
+		if $id >= 0 && $id < ( $obj.parent.children.size - 1 )
+		{
+			copy( $obj.parent.children, $obj.parent.children, $id, $id + 1 )
+			$obj.parent.children[ $obj.parent.children.size - 1 ] = $obj
+			if $obj.onfocus { $obj.onfocus( $obj ) }
+			GUI_focus( $obj.parent )
+		}
+	}
+}
+
+//picks up object texture sides so that it
+//would not look squeezed or stretched
+fn GUI_fix_ratio( $obj )
+{
+	if $0 >= 1
+	{
+		if $obj.tex > 0
+		{
+			$ratio = $obj.w / $obj.h
+			if $ratio >= 1
+			{
+				$i = $obj.tex.xcount while $i > 0
+				{
+					if $i / $ratio <= $obj.tex.ycount
+					{
+						$obj.tex.fxcount = $i
+						$obj.tex.fycount = $i / $ratio
+						ret
+					}
+					$i - 1
+				}
+			}
+			else
+			{
+				$i = $obj.tex.ycount while $i > 0
+				{
+					if $i * $ratio <= $obj.tex.xcount
+					{
+						$obj.tex.fxcount = $i * $ratio
+						$obj.tex.fycount = $i
+						ret
+					}
+					$i - 1
+				}
+			}
+		}
+	}
+}
+
+//propagates specified function along object tree
+fn GUI_propagate( $obj, $function, $flags, $userdata1, $userdata2 )
+{
+	if $0 >= 2
+	{
+		if $0 >= 3 { $t = $flags } else { $t = 0 }
+		
+		//if 2-nd bit is set then skip object that was passed as entry point
+		if $t & 2 { $t & 253 }
+		else { $function( $obj, $userdata1, $userdata2 ) }
+		
+		//if 1-st bit is set then propagate function up the object tree
+		if $t & 1
+		{
+			if GUI_getid( $obj ) >= 0
+			{
+				GUI_propagate( $obj.parent, $function, $t, $userdata1, $userdata2 )
+			}
+		}
+		
+		//otherwise propagate it down the object tree
+		else
+		{
+			if $obj.children
+			{
+				$i = 0 while $i < $obj.children.size
+				{
+					GUI_propagate( $obj.children[ $i ], $function, $t, $userdata1, $userdata2 )
+					$i + 1
+				}
+			}
+		}
+	}
+}
+
+//adds string to object
+fn GUI_add_text( $obj, $prop_name, $text, $relxpos, $relypos, $color, $flags )
+{
+	if $0 >= 1
+	{
+		if $obj.str
+		{
+			$size = $obj.str.size
+			$obj.str.size + 1
+			resize( $obj.str, $obj.str.size, 1, INT )
+		}
+		else
+		{
+			$obj.str = new( 1, 1, INT )
+			$obj.str.size = 1
+			$size = 0
+		}
+		$obj.str[ $size ] = new( 1, 1, INT8 )
+		if $0 >=2
+		{
+			set_prop( $obj, $prop_name, $obj.str[ $size ] )
+		}
+		if $0 >= 3 { $obj.str[ $size ].text = clone( $text ) } else { $obj.str[ $size ].text = clone( "" ) }
+		if $0 >= 4 { $obj.str[ $size ].x = $relxpos } else { $obj.str[ $size ].x = $obj.w / 2 }
+		if $0 >= 5 { $obj.str[ $size ].y = $relypos } else { $obj.str[ $size ].y = $obj.h / 2 }
+		if $0 >= 6 { $obj.str[ $size ].color = $color } else { $obj.str[ $size ].color = WHITE }
+		if $0 >= 7 { $obj.str[ $size ].flags = $flags } else { $obj.str[ $size ].flags = 0 }
+	}
+}
+
+//sets object texture
+fn GUI_set_texture( $obj, $texture, $flags, $mask, $xoffs, $yoffs, $xcount, $ycount )
+{
+	if $0 >= 1
+	{
+		if $0 >= 2 && $texture > 0
+		{
+			$xsize = get_xsize( $texture )
+			$ysize = get_ysize( $texture )
+			if $obj.tex { resize( $obj.tex, $xsize, $ysize, INT ) }
+			else { $obj.tex = new( $xsize, $ysize, INT ) }
+			op_cc( OP_COPY, $obj.tex, $texture )
+			if $0 >= 3 { $obj.tex.flags = $flags } else { $obj.tex.flags = 0 }
+			if $0 >= 4 { $obj.tex.mask = $mask } else { $obj.tex.mask = WHITE }
+			if $0 >= 5 { $obj.tex.xoffs = $xoffs } else { $obj.tex.xoffs = 0 }
+			if $0 >= 6 { $obj.tex.yoffs = $yoffs } else { $obj.tex.yoffs = 0 }
+			if $0 >= 7 { $obj.tex.xcount = $xcount } else { $obj.tex.xcount = $xsize }
+			if $0 >= 8 { $obj.tex.ycount = $ycount } else { $obj.tex.ycount = $ysize }
+			$obj.tex.x = $obj.w / 2
+			$obj.tex.y = $obj.h / 2
+			$obj.tex.fxcount = $obj.tex.xcount
+			$obj.tex.fycount = $obj.tex.ycount
+			if $obj.tex.flags & 1 { GUI_fix_ratio( $obj ) }
+			$obj.tex.xscale = $obj.w / $obj.tex.fxcount
+			$obj.tex.yscale = $obj.h / $obj.tex.fycount
+		}
+		else
+		{
+			$obj.tex = -1
+		}
+	}
+}
+
+//update object texture values
+fn GUI_update_texture( $obj )
+{
+	GUI_set_texture( $obj, $obj.tex, $obj.tex.flags, $obj.tex.mask, $obj.tex.xoffs, $obj.tex.yoffs, $obj.tex.xcount, $obj.tex.ycount )
+}
