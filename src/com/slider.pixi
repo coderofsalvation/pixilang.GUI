@@ -1,0 +1,65 @@
+
+/* usage:
+ *  $slider = GUI_create_slider(main,10,10,200,50, get_color(0,255,0) )
+ *  $slider.title.text = "foobar" 
+ */
+fn GUI_create_slider( $parent, $x, $y, $w, $h, $color, $bordercolor, $minvalue, $maxvalue, $value, $label ){
+	$slider = GUI_new( $parent, $x, $y, $w, $h, GUI_COLORB )
+    $slider.borderw = $w
+    $slider.borderh = $h
+    $slider.borderx = $x
+    $slider.bordery = $y
+    $slider.bordercolor = GUI_COLORBORDER
+    if $bordercolor { $slider.bordercolor = $bordercolor }
+    //in edit mode: LMB - onresize, MMB - onfocus, RMB - ondrag
+    $slider.flags | 64 // allow editing
+    $slider.onresize = {
+        $w = EVT[ EVT_X ] - $1.x 
+        if $w < $1.w {
+            $1.bar.w = $w
+            $1.bar.widthToValue($1.bar,$w)
+        }
+    }
+
+	$bar = GUI_new( $slider, $x+1, $y+1, $w-2, $h-1, $color )
+    $slider.bar = $bar
+    $bar.minw = 0
+    $bar.maxw = $w
+    //in edit mode: LMB - onresize, MMB - onfocus, RMB - ondrag
+    $bar.flags | 64 // allow editing
+    $bar.borderw = $w
+    $bar.borderh = $h
+    $bar.borderx = $x
+    $bar.bordery = $y
+    $bar.value = $value
+    $bar.w = ( $w / ($maxvalue-$minvalue) ) * $value
+    if $bar.w < $bar.minw { $bar.w = $bar.minw }
+    $bar.maxvalue = $maxvalue
+    $bar.minvalue = $minvalue
+	GUI_add_text( $bar, "title" )
+    $bar.title.x = 25
+    $bar.title.y = 9
+    $bar.title.flags = TOP | LEFT
+    $bar.label = $label
+    sprintf( $bar.title.text, "%s: %i",$bar.label, $bar.value)
+    $bar.widthToValue = {
+        $1.value = ( ($1.maxvalue - $1.minvalue) / $1.maxw ) * $2
+        sprintf( $1.title.text, "%s: %i",$1.label, $1.value)
+    }
+    $bar.onresize = {
+        $w = EVT[ EVT_X ] - $1.x 
+        if $w < $1.maxw {
+            if $w > $1.minw { $1.w = $w }
+            $1.widthToValue($1,$w)
+            if $1.onchange {
+                $1.onchange($1)
+            }
+        }
+    }
+    $bar.setValue = {
+        $1.value = $2
+        sprintf( $1.title.text, "%s: %i",$1.label, $1.value)
+        $1.onresize($1)
+    }
+    ret($slider)
+}

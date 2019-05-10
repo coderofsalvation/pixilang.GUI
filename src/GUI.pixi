@@ -2,6 +2,15 @@
 GUI_TOP = -1
 GUI_ID = 1
 //CONSTRUCTOR\DESTRUCTOR
+GUI_COLORB = 0x222222
+GUI_COLORF = new(7)
+GUI_COLORF[0] = #ffc000
+GUI_COLORF[1] = #8f8f8f
+GUI_COLORF[2] = #aa7000
+GUI_COLORF[3] = #444444
+GUI_COLORBORDER = GUI_COLORF[3]
+fn GUI_get_colorfg($i){ ret( GUI_COLORF[$i % 4] ) }
+
 
 //create new object, all parameters are optional
 fn GUI_new( $parent, $xpos, $ypos, $width, $height, $color, $transp, $texture )
@@ -129,31 +138,25 @@ fn GUI_evt( $obj )
 		}
 		else
 		{
-			if $obj == GUI_TOP || $obj.onrelease
+			if ( $obj.flags & 8 ) == 0
 			{
-				if ( $obj.flags & 8 ) == 0
+				if $obj.onenter { $obj.onenter( $obj ) }
+			}
+			if EVT[ EVT_TYPE ] == EVT_MOUSEBUTTONDOWN
+			{
+				if $obj.onpress { $obj.onpress( $obj ) }
+			}
+			if EVT[ EVT_TYPE ] == EVT_MOUSEBUTTONUP
+			{
+				if EVT[ EVT_KEY ] == 1 && $obj.flags & 8 // leftmouse click inside
 				{
-					if $obj.onenter { $obj.onenter( $obj ) }
-				}
-				if EVT[ EVT_TYPE ] == EVT_MOUSEBUTTONDOWN
-				{
-					if $obj.onpress { $obj.onpress( $obj ) }
-				}
-				if EVT[ EVT_TYPE ] == EVT_MOUSEBUTTONUP
-				{
-					if $obj.flags & EVT[ EVT_KEY ]
-					{
-						if $obj.onrelease { $obj.onrelease( $obj ) }
-					}
+					if $obj.onrelease { $obj.onrelease( $obj ) }
 				}
 			}
-			else
+			if $obj.flags & 8
 			{
-				if $obj.flags & 8
-				{
-					$obj.flags & 240
-					if $obj.onleave { $obj.onleave( $obj ) }
-				}
+				$obj.flags & 240
+				if $obj.onleave { $obj.onleave( $obj ) }
 			}
 			if EVT[ EVT_TYPE ] == EVT_SCREENRESIZE
 			{
@@ -239,9 +242,9 @@ fn GUI_draw( $obj )
 				$i + 1
 			}
 		}
-		if $obj.border
+		if $obj.bordercolor
 		{
-			box( $obj.borderx, $obj.bordery, $obj.borderw, $obj.borderh, $obj.border )
+			box( $obj.borderx, $obj.bordery, $obj.borderw, $obj.borderh, $obj.bordercolor )
 		}
 		transp( $t )
 		if $obj.children
